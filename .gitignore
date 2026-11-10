@@ -1,0 +1,45 @@
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+secrets/
+*.pem
+*.key
+
+# Python virtual environment
+.venv/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Local database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Private uploaded documents
+documents/*
+!documents/.gitkeep
+
+# n8n local data
+.n8n/
+n8n_data/
+
+# Temporary files
+temp/
+tmp/
+.DS_Store
+Thumbs.db
