@@ -16,7 +16,32 @@
 .stApp hr { border-color: #E2E8F0 !important; }
 [data-testid="stExpander"] { background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; }
 [data-testid="stFileUploader"] { background: #F5F9FF; border: 1px dashed #A9C9ED; border-radius: 12px; padding: 10px; }
-[data-testid="stAlert"] { border-radius: 12px; }
+
+/* === FIX: Error / Alert boxes - Professional Light Colors === */
+[data-testid="stAlert"] { 
+    border-radius: 12px !important; 
+    background: #FFF5F5 !important; 
+    border: 1px solid #FFCDCD !important;
+}
+[data-testid="stAlert"] p, [data-testid="stAlert"] div {
+    color: #e87cc4 !important;
+}
+
+/* Fix for dark analysis failed / migration boxes */
+div[style*="background: rgb(38"], div[style*="background:#1"], div[style*="background: #1"],
+div[style*="background-color: rgb(38"], div[style*="background-color:#1"] {
+    background: #F8FAFF !important;
+    border: 1px solid #DCE4FF !important;
+    color: #264ed1 !important;
+    border-radius: 12px !important;
+}
+
+/* Any dark inline container in main area */
+[data-testid="stMain"] div[style*="background-color: #2"] {
+    background: #F2F8FF !important;
+    color: #2f3e56 !important;
+    border: 1px solid #DCEBFA !important;
+}
 
 /* KnowSphere hero */
 .ks-hero { padding: 1.2rem 0 1.1rem; margin-bottom: .7rem; }
