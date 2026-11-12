@@ -1,4 +1,5 @@
 import os
+import pathlib
 import html
 import time
 import re
@@ -173,7 +174,7 @@ groq_client = get_groq_client()
 def get_db_connection():
     try:
         from dotenv import load_dotenv
-        load_dotenv()
+        load_dotenv(dotenv_path=pathlib.Path(__file__).parent / ".env", override=True)
         db_url = get_secret("DATABASE_URL")
         if not db_url:
             print("ERROR: DATABASE_URL missing")
