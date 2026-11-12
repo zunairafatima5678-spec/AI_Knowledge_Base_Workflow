@@ -6,3 +6,4 @@ groq==1.7.0
 sentence-transformers==6.2.0
 pypdf==7.0.0
 python-dotenv==1.2.4
+google-genai==3.2.0

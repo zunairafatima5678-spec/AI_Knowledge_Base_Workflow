@@ -1,0 +1,49 @@
+/* KnowSphere AI — White / Light Blue / Purple professional theme */
+.stApp, [data-testid="stMain"] { background: #FFFFFF !important; color: #172554 !important; }
+[data-testid="stMain"] .block-container { max-width: 1450px; padding-top: 1.8rem; padding-bottom: 3rem; }
+
+/* Light-blue upload sidebar */
+[data-testid="stSidebar"], [data-testid="stSidebar"] > div:first-child { background: #EAF3FF !important; border-right: 1px solid #D5E6FA; }
+[data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3, [data-testid="stSidebar"] label, [data-testid="stSidebar"] p { color: #18345B !important; }
+[data-testid="stSidebar"] input, [data-testid="stSidebar"] textarea, [data-testid="stSidebar"] [data-baseweb="select"] > div { background: #FFFFFF !important; color: #172554 !important; border: 1px solid #C9DDF4 !important; border-radius: 10px !important; }
+
+/* Main typography and controls */
+.stApp h1, .stApp h2, .stApp h3 { color: #172554 !important; font-weight: 700; }
+.stApp p, .stApp label { color: #334155; }
+.stApp input, .stApp textarea, [data-baseweb="select"] > div { background: #FFFFFF !important; color: #172554 !important; border: 1px solid #D7DFEA !important; border-radius: 10px !important; }
+.stApp button[kind="primary"] { background: #526FD1 !important; color: #FFFFFF !important; border: 0 !important; border-radius: 10px !important; font-weight: 600; }
+.stApp button[kind="primary"]:hover { background: #4058B4 !important; }
+.stApp hr { border-color: #E2E8F0 !important; }
+[data-testid="stExpander"] { background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; }
+[data-testid="stFileUploader"] { background: #F5F9FF; border: 1px dashed #A9C9ED; border-radius: 12px; padding: 10px; }
+[data-testid="stAlert"] { border-radius: 12px; }
+
+/* KnowSphere hero */
+.ks-hero { padding: 1.2rem 0 1.1rem; margin-bottom: .7rem; }
+.ks-eyebrow { color: #526FD1; font-size: .72rem; letter-spacing: .13em; font-weight: 800; margin-bottom: .45rem; }
+.ks-hero h1 { color: #172554 !important; font-size: clamp(2rem, 4vw, 2.7rem); margin: 0 0 .35rem; }
+.ks-hero p { color: #64748B !important; font-size: 1rem; margin: 0; }
+
+/* Three soft-color information cards */
+.ks-stat { min-height: 142px; border-radius: 17px; padding: 20px 21px; border: 1px solid transparent; box-shadow: 0 5px 18px rgba(30, 64, 120, .055); margin: .35rem 0 1.35rem; }
+.ks-stat-blue { background: #EAF3FF; border-color: #D5E6FA; }
+.ks-stat-purple { background: #F2EDFF; border-color: #E1D7FF; }
+.ks-stat-mint { background: #EAF8F2; border-color: #D1F0E1; }
+.ks-stat-label { color: #475569; font-size: .88rem; font-weight: 650; }
+.ks-stat-value { color: #172554; font-size: 2.1rem; line-height: 1.25; font-weight: 800; margin-top: .45rem; overflow-wrap: anywhere; }
+.ks-subject-value { font-size: 1.35rem; padding-top: .35rem; }
+.ks-stat-note { color: #64748B; font-size: .76rem; margin-top: .3rem; }
+
+/* PDF document cards */
+.ks-document { display: flex; align-items: center; gap: 14px; background: #F2F8FF; border: 1px solid #DCEBFA; border-radius: 14px; padding: 15px 17px; margin: 9px 0; }
+.ks-document-icon { display: flex; align-items: center; justify-content: center; width: 43px; height: 48px; flex: 0 0 43px; border-radius: 10px; background: #DCEBFF; color: #2866B5; font-size: .72rem; font-weight: 800; }
+.ks-document-info { min-width: 0; flex: 1; }
+.ks-document-title { color: #1E293B; font-size: .95rem; font-weight: 750; overflow-wrap: anywhere; }
+.ks-document-meta { color: #64748B; font-size: .78rem; margin-top: 4px; overflow-wrap: anywhere; }
+.ks-document-status { color: #147D59; background: #DDF7EB; border-radius: 999px; padding: 5px 10px; font-size: .72rem; font-weight: 750; white-space: nowrap; }
+
+@media (max-width: 768px) {
+  [data-testid="stMain"] .block-container { padding: 1rem; }
+  .ks-document { align-items: flex-start; flex-wrap: wrap; }
+  .ks-document-status { margin-left: 57px; }
+}
