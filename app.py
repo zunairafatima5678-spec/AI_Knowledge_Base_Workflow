@@ -153,15 +153,14 @@ def get_gemini_client():
 
 @st.cache_resource
 def get_groq_client():
-
     if not GROQ_API_KEY:
-
-        raise RuntimeError(
-
-            "GROQ_API_KEY is missing in Streamlit Secrets or .env."
-
-        )
-    return Groq(api_key=GROQ_API_KEY)
+        print(f"Warning: GROQ_API_KEY missing")
+        return None
+    try:
+        return Groq(api_key=GROQ_API_KEY)
+    except Exception as e:
+        print(f"Groq client error: {e}")
+        return None
 
 
 gemini_client = get_gemini_client()
