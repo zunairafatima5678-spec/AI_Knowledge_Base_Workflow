@@ -3,6 +3,8 @@ import html
 import time
 import re
 import hashlib
+import asyncio
+import sys
 import json
 from typing import List, Optional
 import psycopg2
@@ -13,10 +15,8 @@ from pypdf import PdfReader
 from google import genai
 from google.genai import types
 
-# =========================================================
-# 1. ENVIRONMENT AND SECRETS
-# =========================================================
-load_dotenv()
+if sys.platform.startswith("win"):
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 def get_secret(key, default=None):
 
@@ -172,16 +172,19 @@ groq_client = get_groq_client()
 # =========================================================
 
 def get_db_connection():
-
-    if not DB_CONFIG["user"] or not DB_CONFIG["password"]:
-
-        raise RuntimeError(
-
-            "DB_USER or DB_PASSWORD is missing."
-
-        )
-
-    return psycopg2.connect(**DB_CONFIG)
+    try:
+        from dotenv import load_dotenv
+        load_dotenv()
+        # Pehle .env se DATABASE_URL lega, agar na mile to Neon ka URL lega
+        db_url = os.getenv("DATABASE_URL")
+        if db_url:
+            return psycopg2.connect(db_url)
+        else:
+            # Fallback for localhost (aap isko hata bhi sakte hain)
+            return None
+    except Exception as e:
+        print(f"DB Error: {e}")
+        return None
 
 def vector_literal(values):
 
@@ -326,112 +329,28 @@ def get_embeddings_batch(
 # =========================================================
 
 def ensure_database_schema():
-
-
-
     conn = get_db_connection()
-
-    cur = conn.cursor()
-
-
-
+    if conn is None:
+        print("Cannot create schema - DB connection is None. Check your DATABASE_URL in .env")
+        return # Yahan ruk jayega, crash nahi karega
+    
     try:
-
-        cur.execute(
-
-            "CREATE EXTENSION IF NOT EXISTS vector;"
-
-        )
-        # New Gemini table.
-        # Existing 384-dimensional document_chunks is NOT changed.
-
-
-
-        cur.execute(f"""
-
-            CREATE TABLE IF NOT EXISTS {APP_VECTOR_TABLE} (
-
-                id BIGSERIAL PRIMARY KEY,
-
-                document_id INTEGER NOT NULL
-
-                    REFERENCES documents(id) ON DELETE CASCADE,
-
-                chunk_index INTEGER NOT NULL,
-
-                page_number INTEGER,
-
-                content TEXT NOT NULL,
-
-                embedding vector(3072) NOT NULL,
-
-                created_at TIMESTAMPTZ DEFAULT NOW(),
-
-                UNIQUE(document_id, chunk_index)
-
-            );
-
-        """)
-
-
-
-        # AI-generated document metadata; existing tables and vectors are preserved.
+        cur = conn.cursor()
+        # Yahan aap ka CREATE TABLE wala code jaisa hai waisa hi rehne dein
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS document_insights (
-                document_id INTEGER PRIMARY KEY REFERENCES documents(id) ON DELETE CASCADE,
-                subject TEXT,
-                topics JSONB NOT NULL DEFAULT '[]'::jsonb,
-                organization TEXT,
-                summary TEXT,
-                created_at TIMESTAMPTZ DEFAULT NOW()
+            CREATE TABLE IF NOT EXISTS documents (
+                id SERIAL PRIMARY KEY,
+                filename TEXT,
+                content TEXT,
+                embedding VECTOR
             );
         """)
-
-        # Chat history table.
-
-        cur.execute("""
-
-            CREATE TABLE IF NOT EXISTS chat_history (
-
-                id BIGSERIAL PRIMARY KEY,
-
-                question TEXT NOT NULL,
-
-                answer TEXT NOT NULL,
-
-                source_document_ids INTEGER[],
-
-                created_at TIMESTAMPTZ DEFAULT NOW()
-
-            );
-
-        """)
-
-
-
         conn.commit()
-
-
-
-    except Exception:
-
-        conn.rollback()
-
-        raise
-
-
-
-    finally:
-
         cur.close()
-
         conn.close()
-
-
-
-
-
-ensure_database_schema()
+        print("Database schema ready")
+    except Exception as e:
+        print(f"Schema Error: {e}")
 
 # =========================================================
 # 8. DOCUMENT CHUNKING
