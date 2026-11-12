@@ -1824,7 +1824,6 @@ except Exception as error:
     st.error(f"Could not load documents from the database: {str(error)[:400]}")
     docs = []
 
-st.markdown("<div class='ks-hero'><div><div class='ks-eyebrow'>YOUR INTELLIGENT KNOWLEDGE WORKSPACE</div><h1>KnowSphere AI</h1><p>One place to explore, understand and ask questions about your documents.</p></div></div>", unsafe_allow_html=True)
 
 # Select a document first so the page count and AI subject refer to that PDF only.
 selected_doc_id = None
