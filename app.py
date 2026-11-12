@@ -1,11 +1,8 @@
 import os
-import pathlib
 import html
 import time
 import re
 import hashlib
-import asyncio
-import sys
 import json
 from typing import List, Optional
 import psycopg2
@@ -16,8 +13,15 @@ from pypdf import PdfReader
 from google import genai
 from google.genai import types
 
-if sys.platform.startswith("win"):
-    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+# =========================================================
+# 1. ENVIRONMENT AND SECRETS
+# =========================================================
+# Resolve .env relative to this file (works even when Streamlit is
+# launched from a different working directory). Streamlit Cloud Secrets
+# are checked first by get_secret() below.
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+ENV_FILE = os.path.join(BASE_DIR, ".env")
+load_dotenv(dotenv_path=ENV_FILE, override=False)
 
 def get_secret(key, default=None):
 
@@ -65,6 +69,7 @@ DB_CONFIG = {
     "dbname": get_secret("DB_NAME", "company_rag"),
     "user": get_secret("DB_USER"),
     "password": get_secret("DB_PASSWORD"),
+    "connect_timeout": int(get_secret("DB_CONNECT_TIMEOUT", "10")),
     "sslmode": get_secret(
 
         "DB_SSLMODE",
@@ -141,27 +146,28 @@ st.caption(
 
 @st.cache_resource
 def get_gemini_client():
+
     if not GEMINI_API_KEY:
-        print("Warning: GEMINI_API_KEY not found")
-        return None
-    try:
-        from google import genai
-        return genai.Client(api_key=GEMINI_API_KEY)
-    except Exception as e:
-        print(f"Gemini client error: {e}")
-        return None
+
+        raise RuntimeError(
+
+            "GEMINI_API_KEY is missing in Streamlit Secrets or .env."
+
+        )
+    return genai.Client(api_key=GEMINI_API_KEY)
 
 
 @st.cache_resource
 def get_groq_client():
+
     if not GROQ_API_KEY:
-        print(f"Warning: GROQ_API_KEY missing")
-        return None
-    try:
-        return Groq(api_key=GROQ_API_KEY)
-    except Exception as e:
-        print(f"Groq client error: {e}")
-        return None
+
+        raise RuntimeError(
+
+            "GROQ_API_KEY is missing in Streamlit Secrets or .env."
+
+        )
+    return Groq(api_key=GROQ_API_KEY)
 
 
 gemini_client = get_gemini_client()
@@ -172,17 +178,16 @@ groq_client = get_groq_client()
 # =========================================================
 
 def get_db_connection():
-    try:
-        from dotenv import load_dotenv
-        load_dotenv(dotenv_path=pathlib.Path(__file__).parent / ".env", override=True)
-        db_url = get_secret("DATABASE_URL")
-        if not db_url:
-            print("ERROR: DATABASE_URL missing")
-            return None
-        return psycopg2.connect(db_url)
-    except Exception as e:
-        print(f"DB Error: {e}")
-        return None
+
+    if not DB_CONFIG["user"] or not DB_CONFIG["password"]:
+
+        raise RuntimeError(
+
+            "DB_USER or DB_PASSWORD is missing."
+
+        )
+
+    return psycopg2.connect(**DB_CONFIG)
 
 def vector_literal(values):
 
@@ -265,6 +270,11 @@ def get_embeddings_batch(
     task_type: str = "RETRIEVAL_DOCUMENT"
 ) -> List[List[float]]:
     """Create Gemini embeddings in small batches with 429-aware retries."""
+    if not texts:
+        return []
+    if any(not isinstance(item, str) or not item.strip() for item in texts):
+        raise ValueError("Embedding input contains an empty or invalid text chunk.")
+
     all_embeddings = []
 
     for start in range(0, len(texts), EMBEDDING_BATCH_SIZE):
@@ -327,28 +337,112 @@ def get_embeddings_batch(
 # =========================================================
 
 def ensure_database_schema():
+
+
+
     conn = get_db_connection()
-    if conn is None:
-        print("Cannot create schema - DB connection is None. Check your DATABASE_URL in .env")
-        return # Yahan ruk jayega, crash nahi karega
-    
+
+    cur = conn.cursor()
+
+
+
     try:
-        cur = conn.cursor()
-        # Yahan aap ka CREATE TABLE wala code jaisa hai waisa hi rehne dein
+
+        cur.execute(
+
+            "CREATE EXTENSION IF NOT EXISTS vector;"
+
+        )
+        # New Gemini table.
+        # Existing 384-dimensional document_chunks is NOT changed.
+
+
+
+        cur.execute(f"""
+
+            CREATE TABLE IF NOT EXISTS {APP_VECTOR_TABLE} (
+
+                id BIGSERIAL PRIMARY KEY,
+
+                document_id INTEGER NOT NULL
+
+                    REFERENCES documents(id) ON DELETE CASCADE,
+
+                chunk_index INTEGER NOT NULL,
+
+                page_number INTEGER,
+
+                content TEXT NOT NULL,
+
+                embedding vector(3072) NOT NULL,
+
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+
+                UNIQUE(document_id, chunk_index)
+
+            );
+
+        """)
+
+
+
+        # AI-generated document metadata; existing tables and vectors are preserved.
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS documents (
-                id SERIAL PRIMARY KEY,
-                filename TEXT,
-                content TEXT,
-                embedding VECTOR
+            CREATE TABLE IF NOT EXISTS document_insights (
+                document_id INTEGER PRIMARY KEY REFERENCES documents(id) ON DELETE CASCADE,
+                subject TEXT,
+                topics JSONB NOT NULL DEFAULT '[]'::jsonb,
+                organization TEXT,
+                summary TEXT,
+                created_at TIMESTAMPTZ DEFAULT NOW()
             );
         """)
+
+        # Chat history table.
+
+        cur.execute("""
+
+            CREATE TABLE IF NOT EXISTS chat_history (
+
+                id BIGSERIAL PRIMARY KEY,
+
+                question TEXT NOT NULL,
+
+                answer TEXT NOT NULL,
+
+                source_document_ids INTEGER[],
+
+                created_at TIMESTAMPTZ DEFAULT NOW()
+
+            );
+
+        """)
+
+
+
         conn.commit()
+
+
+
+    except Exception:
+
+        conn.rollback()
+
+        raise
+
+
+
+    finally:
+
         cur.close()
+
         conn.close()
-        print("Database schema ready")
-    except Exception as e:
-        print(f"Schema Error: {e}")
+
+
+
+
+
+ensure_database_schema()
 
 # =========================================================
 # 8. DOCUMENT CHUNKING
@@ -512,102 +606,71 @@ def get_or_create_company(
 # 10. PDF INGESTION
 # =========================================================
 
+def _extract_json_object(raw_text: str) -> dict:
+    """Safely extract the first JSON object from an LLM response."""
+    if not raw_text:
+        return {}
+
+    cleaned = raw_text.strip()
+    cleaned = re.sub(r"^```(?:json)?\s*|\s*```$", "", cleaned, flags=re.IGNORECASE)
+
+    decoder = json.JSONDecoder()
+    for index, character in enumerate(cleaned):
+        if character == "{":
+            try:
+                data, _ = decoder.raw_decode(cleaned[index:])
+                return data if isinstance(data, dict) else {}
+            except json.JSONDecodeError:
+                continue
+    return {}
+
+
 def classify_document(full_text: str) -> dict:
-    """Identify a PDF's subject, topics and explicitly named organization using Groq."""
-    sample = (full_text or "")[:14000]
-    prompt = rf"""Read this document excerpt and return ONLY valid JSON with keys:
-subject: short broad subject; topics: array of 3-6 short topics; organization: company/institution only if explicitly named, otherwise null; summary: one concise sentence.
+    """Identify a PDF's subject, topics and explicitly named organization."""
+    sample = (full_text or "").strip()[:14000]
+    if not sample:
+        raise ValueError("The PDF contains no readable text to analyze.")
+
+    prompt = f"""Read the document excerpt and return ONLY one valid JSON object.
+Use exactly these keys:
+- subject: short broad subject
+- topics: array of 3-6 short topics
+- organization: company/institution only when explicitly named; otherwise null
+- summary: one concise sentence
+
 The document may be about any subject. Do not assume it is a business document.
+Do not add Markdown fences or text outside JSON.
 
 DOCUMENT:
 {sample}
 """
-    try:
-        response = groq_client.chat.completions.create(
-            model=LLM_MODEL,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.1
-        )
-        raw = response.choices[0].message.content or "{}"
-        start = raw.find("{")
 
-        if start == -1:
-            raise ValueError("AI did not return JSON.")
+    response = groq_client.chat.completions.create(
+        model=LLM_MODEL,
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.1,
+    )
+    raw = response.choices[0].message.content or ""
+    data = _extract_json_object(raw)
 
-        data, _ = json.JSONDecoder().raw_decode(raw[start:])
-
-    except (json.JSONDecodeError, TypeError, ValueError) as e:
-        print(f"Classify Error: {e}")
-        data = {}
-    
     topics = data.get("topics", [])
+    if isinstance(topics, str):
+        topics = [item.strip() for item in re.split(r"[,;]", topics) if item.strip()]
     if not isinstance(topics, list):
         topics = []
-        
+
+    organization = data.get("organization")
+    if isinstance(organization, str):
+        organization = organization.strip() or None
+    else:
+        organization = None
+
     return {
-        "subject": str(data.get("subject") or "Not identified")[:160],
-        "topics": [str(x)[:100] for x in topics[:8]],
-        "organization": str(data["organization"])[:200] if data.get("organization") else None,
-        "summary": str(data.get("summary") or "")[:600]
+        "subject": str(data.get("subject") or "Not identified").strip()[:160],
+        "topics": [str(item).strip()[:100] for item in topics[:8] if str(item).strip()],
+        "organization": str(organization)[:200] if organization else None,
+        "summary": str(data.get("summary") or "").strip()[:600],
     }
-
-
-def reanalyze_document(doc_id: int) -> dict:
-    conn = get_db_connection()
-    cur = conn.cursor()
-
-    try:
-        cur.execute(
-            f"""
-            SELECT content
-            FROM {APP_VECTOR_TABLE}
-            WHERE document_id = %s
-            ORDER BY chunk_index
-            """,
-            (doc_id,)
-        )
-
-        rows = cur.fetchall()
-
-        if not rows:
-            raise ValueError(
-                "No indexed text found for this PDF."
-            )
-
-        full_text = "\n".join(row[0] for row in rows)
-
-        insights = classify_document(full_text)
-
-        cur.execute(
-            """
-            INSERT INTO document_insights
-                (document_id, subject, topics, organization, summary)
-            VALUES (%s, %s, %s::jsonb, %s, %s)
-            ON CONFLICT (document_id) DO UPDATE SET
-                subject = EXCLUDED.subject,
-                topics = EXCLUDED.topics,
-                organization = EXCLUDED.organization,
-                summary = EXCLUDED.summary
-            """,
-            (
-                doc_id,
-                insights["subject"],
-                json.dumps(insights["topics"]),
-                insights["organization"],
-                insights["summary"]
-            )
-        )
-
-        conn.commit()
-        return insights
-
-    except Exception:
-        conn.rollback()
-        raise
-
-    finally:
-        cur.close()
-        conn.close()
 
 
 def save_pdf_to_db(
@@ -1112,6 +1175,45 @@ def fetch_documents():
 
         conn.close()
 
+def reanalyze_document(document_id: int) -> dict:
+    """Re-run subject/topic classification for an already indexed PDF."""
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            f"""SELECT content FROM {APP_VECTOR_TABLE}
+                WHERE document_id = %s ORDER BY chunk_index""",
+            (document_id,),
+        )
+        rows = cur.fetchall()
+        document_text = "\n".join(row[0] for row in rows if row and row[0])
+        if not document_text.strip():
+            raise ValueError("No indexed text was found for this PDF. Re-upload or re-index it first.")
+
+        insights = classify_document(document_text)
+        cur.execute(
+            """INSERT INTO document_insights
+                (document_id, subject, topics, organization, summary)
+               VALUES (%s, %s, %s::jsonb, %s, %s)
+               ON CONFLICT (document_id) DO UPDATE SET
+                 subject = EXCLUDED.subject,
+                 topics = EXCLUDED.topics,
+                 organization = EXCLUDED.organization,
+                 summary = EXCLUDED.summary,
+                 created_at = NOW()""",
+            (document_id, insights["subject"], json.dumps(insights["topics"]),
+             insights["organization"], insights["summary"]),
+        )
+        conn.commit()
+        return insights
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        cur.close()
+        conn.close()
+
+
 # =========================================================
 # 13. SEARCH APP AND N8N VECTORS
 # =========================================================
@@ -1570,7 +1672,7 @@ def ask_llm(question: str, context: str) -> str:
 
 
 
-    prompt = rf"""
+    prompt = f"""
 
 You are KnowSphere AI, an accurate document research assistant.
 
@@ -1641,28 +1743,15 @@ ANSWER:
 
 
     response = groq_client.chat.completions.create(
-
         model=LLM_MODEL,
-
-        messages=[
-
-            {
-
-                "role": "user",
-
-                "content": prompt
-
-            }
-
-        ],
-
-        temperature=0.1
-
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.1,
     )
 
-
-
-    return response.choices[0].message.content
+    answer = response.choices[0].message.content
+    if not answer or not answer.strip():
+        return "I could not generate an answer from the retrieved document content."
+    return answer.strip()
 
 
 
@@ -1684,6 +1773,11 @@ if uploaded_file is not None and st.sidebar.button("Ingest PDF", type="primary",
     try:
         with st.spinner("Reading PDF, analyzing its subject and indexing content..."):
             reader = PdfReader(uploaded_file)
+            if reader.is_encrypted:
+                try:
+                    reader.decrypt("")
+                except Exception as decrypt_error:
+                    raise ValueError("This PDF is password-protected and could not be opened.") from decrypt_error
             chunks = chunk_pdf_pages(reader)
             full_text = "\n".join(item["content"] for item in chunks)
             if not chunks:
@@ -1735,6 +1829,7 @@ except Exception as error:
     st.error(f"Could not load documents from the database: {str(error)[:400]}")
     docs = []
 
+st.markdown("<div class='ks-hero'><div><div class='ks-eyebrow'>YOUR INTELLIGENT KNOWLEDGE WORKSPACE</div><h1>KnowSphere AI</h1><p>One place to explore, understand and ask questions about your documents.</p></div></div>", unsafe_allow_html=True)
 
 # Select a document first so the page count and AI subject refer to that PDF only.
 selected_doc_id = None
@@ -1782,19 +1877,6 @@ else:
 
 if selected_doc:
     with st.expander("Document insights", expanded=False):
-        if st.button(
-            "Analyze Subject Again",
-            key=f"reanalyze_{selected_doc_id}"
-        ):
-            try:
-                with st.spinner("Analyzing document subject..."):
-                    insights = reanalyze_document(selected_doc_id)
-
-                st.success("Document analyzed successfully!")
-                st.rerun()
-
-            except Exception as error:
-                st.error(f"Analysis failed: {error}")
         st.markdown(f"**Subject:** {selected_doc[6] or 'Not analyzed'}")
         if selected_doc[8]:
             st.markdown(f"**Organization identified:** {selected_doc[8]}")
@@ -1806,6 +1888,15 @@ if selected_doc:
             except Exception: topics = []
         if topics:
             st.markdown("**Topics:** " + " · ".join(str(x) for x in topics))
+
+        if st.button("Analyze Subject Again", key=f"reanalyze_{selected_doc_id}"):
+            try:
+                with st.spinner("Analyzing this PDF again..."):
+                    reanalyze_document(int(selected_doc_id))
+                st.success("Document subject and topics updated successfully.")
+                st.rerun()
+            except Exception as error:
+                st.error(f"Re-analysis failed: {str(error)[:400]}")
 
 
 # =========================================================
@@ -1927,15 +2018,15 @@ Content:
 
 
 
-                source_ids = (
-
-                    [selected_doc_id]
-
-                    if selected_doc_id is not None
-
-                    else []
-
-                )
+                if selected_doc_id is not None:
+                    source_ids = [int(selected_doc_id)]
+                else:
+                    source_ids = []
+                    source_names = {item["source"] for item in results}
+                    for document in docs:
+                        if document[1] in source_names:
+                            source_ids.append(int(document[0]))
+                    source_ids = list(dict.fromkeys(source_ids))
 
 
 
