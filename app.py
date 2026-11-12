@@ -140,15 +140,15 @@ st.caption(
 
 @st.cache_resource
 def get_gemini_client():
-
     if not GEMINI_API_KEY:
-
-        raise RuntimeError(
-
-            "GEMINI_API_KEY is missing in Streamlit Secrets or .env."
-
-        )
-    return genai.Client(api_key=GEMINI_API_KEY)
+        print("Warning: GEMINI_API_KEY not found")
+        return None
+    try:
+        from google import genai
+        return genai.Client(api_key=GEMINI_API_KEY)
+    except Exception as e:
+        print(f"Gemini client error: {e}")
+        return None
 
 
 @st.cache_resource
