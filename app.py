@@ -174,13 +174,11 @@ def get_db_connection():
     try:
         from dotenv import load_dotenv
         load_dotenv()
-        # Pehle .env se DATABASE_URL lega, agar na mile to Neon ka URL lega
-        db_url = os.getenv("DATABASE_URL")
-        if db_url:
-            return psycopg2.connect(db_url)
-        else:
-            # Fallback for localhost (aap isko hata bhi sakte hain)
+        db_url = get_secret("DATABASE_URL")
+        if not db_url:
+            print("ERROR: DATABASE_URL missing")
             return None
+        return psycopg2.connect(db_url)
     except Exception as e:
         print(f"DB Error: {e}")
         return None
