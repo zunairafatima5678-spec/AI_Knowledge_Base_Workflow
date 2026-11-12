@@ -1698,13 +1698,13 @@ Before answering, inspect how the data is organized.
 
 Check:
 
-\- Whether years appear in column headings or rows.
+- Whether years appear in column headings or rows.
 
-\- Whether values appear below or beside the year.
+- Whether values appear below or beside the year.
 
-\- Whether the table uses multiple reporting years.
+- Whether the table uses multiple reporting years.
 
-\- Whether units are mn, bn, %, KT or another unit.
+- Whether units are mn, bn, %, KT or another unit.
 
 
 
