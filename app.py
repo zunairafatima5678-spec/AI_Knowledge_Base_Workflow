@@ -1752,7 +1752,6 @@ ANSWER:
     if not answer or not answer.strip():
         return "I could not generate an answer from the retrieved document content."
     return answer.strip()
-
 # =========================================================
 # 17. SIDEBAR - PDF UPLOAD
 # =========================================================

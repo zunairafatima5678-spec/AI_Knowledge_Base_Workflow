@@ -24,7 +24,7 @@
     border: 1px solid #FFCDCD !important;
 }
 [data-testid="stAlert"] p, [data-testid="stAlert"] div {
-    color: #e87cc4 !important;
+    color: #d254a8 !important;
 }
 
 /* Fix for dark analysis failed / migration boxes */
@@ -32,14 +32,14 @@ div[style*="background: rgb(38"], div[style*="background:#1"], div[style*="backg
 div[style*="background-color: rgb(38"], div[style*="background-color:#1"] {
     background: #F8FAFF !important;
     border: 1px solid #DCE4FF !important;
-    color: #264ed1 !important;
+    color: #172554 !important;
     border-radius: 12px !important;
 }
 
 /* Any dark inline container in main area */
 [data-testid="stMain"] div[style*="background-color: #2"] {
     background: #F2F8FF !important;
-    color: #2f3e56 !important;
+    color: #1E293B !important;
     border: 1px solid #DCEBFA !important;
 }
 
