@@ -1753,10 +1753,6 @@ ANSWER:
         return "I could not generate an answer from the retrieved document content."
     return answer.strip()
 
-
-
-
-
 # =========================================================
 # 17. SIDEBAR - PDF UPLOAD
 # =========================================================
