@@ -1,15 +1,33 @@
 /* KnowSphere AI — White / Light Blue / Purple professional theme */
-.stApp, [data-testid="stMain"] { background: #FFFFFF !important; color: #172554 !important; }
+/* Top black header ko white karna */
+header[data-testid="stHeader"] {
+    background-color: white !important;
+    background: white !important;
+}
+
+div[data-testid="stHeader"] {
+    background-color: white !important;
+}
+
+.stAppHeader {
+    background-color: white !important;
+}
+
+/* Upar wala khali gap kam karna */
+.block-container {
+    padding-top: 1rem !important;
+}
+.stApp, [data-testid="stMain"] { background: #FFFFFF !important; color: #2b3d76 !important; }
 [data-testid="stMain"] .block-container { max-width: 1450px; padding-top: 1.8rem; padding-bottom: 3rem; }
 
 /* Light-blue upload sidebar */
-[data-testid="stSidebar"], [data-testid="stSidebar"] > div:first-child { background: #EAF3FF !important; border-right: 1px solid #D5E6FA; }
-[data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3, [data-testid="stSidebar"] label, [data-testid="stSidebar"] p { color: #18345B !important; }
-[data-testid="stSidebar"] input, [data-testid="stSidebar"] textarea, [data-testid="stSidebar"] [data-baseweb="select"] > div { background: #FFFFFF !important; color: #172554 !important; border: 1px solid #C9DDF4 !important; border-radius: 10px !important; }
+[data-testid="stSidebar"], [data-testid="stSidebar"] > div:first-child { background: #EAF3FF !important; border-right: 1px solid #c2d7ef; }
+[data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3, [data-testid="stSidebar"] label, [data-testid="stSidebar"] p { color: #5180c1 !important; }
+[data-testid="stSidebar"] input, [data-testid="stSidebar"] textarea, [data-testid="stSidebar"] [data-baseweb="select"] > div { background: #FFFFFF !important; color: #122152 !important; border: 1px solid #C9DDF4 !important; border-radius: 10px !important; }
 
 /* Main typography and controls */
-.stApp h1, .stApp h2, .stApp h3 { color: #172554 !important; font-weight: 700; }
-.stApp p, .stApp label { color: #334155; }
+.stApp h1, .stApp h2, .stApp h3 { color: #233367 !important; font-weight: 700; }
+.stApp p, .stApp label { color: #344660; }
 .stApp input, .stApp textarea, [data-baseweb="select"] > div { background: #FFFFFF !important; color: #172554 !important; border: 1px solid #D7DFEA !important; border-radius: 10px !important; }
 .stApp button[kind="primary"] { background: #526FD1 !important; color: #FFFFFF !important; border: 0 !important; border-radius: 10px !important; font-weight: 600; }
 .stApp button[kind="primary"]:hover { background: #4058B4 !important; }
@@ -71,4 +89,11 @@ div[style*="background-color: rgb(38"], div[style*="background-color:#1"] {
   [data-testid="stMain"] .block-container { padding: 1rem; }
   .ks-document { align-items: flex-start; flex-wrap: wrap; }
   .ks-document-status { margin-left: 57px; }
+}
+
+div[data-testid="stVerticalBlock"] p {
+    color: #578cd7 !important;
+}
+.stMarkdown p {
+    color: #1E293B !important;
 }
